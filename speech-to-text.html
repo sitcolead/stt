@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #fafafa;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #09090b;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e4e4e7;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            border-bottom: 1px solid #e4e4e7;
+            padding: 24px 32px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #09090b;
+        }
+
+        .header p {
+            color: #71717a;
+            font-size: 14px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: 600px;
+        }
+
+        .sidebar {
+            background: #fafafa;
+            border-right: 1px solid #e4e4e7;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-section h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #71717a;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .engine-selector select,
+        .language-selector select {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 14px;
+            border: 1px solid #e4e4e7;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #09090b;
+        }
+
+        .engine-selector select:hover:not(:disabled),
+        .language-selector select:hover:not(:disabled) {
+            border-color: #d4d4d8;
+        }
+
+        .engine-selector select:focus,
+        .language-selector select:focus {
+            outline: none;
+            border-color: #18181b;
+            box-shadow: 0 0 0 3px rgba(24, 24, 27, 0.1);
+        }
+
+        .engine-selector select:disabled,
+        .language-selector select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #fafafa;
+        }
+
+        .engine-info {
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e4e4e7;
+            font-size: 13px;
+            color: #71717a;
+        }
+
+        .engine-info.online {
+            background: #dbeafe;
+            border-color: #93c5fd;
+            color: #1e40af;
+        }
+
+        .engine-info.offline {
+            background: #d1fae5;
+            border-color: #6ee7b7;
+            color: #065f46;
+        }
+
+        .model-download {
+            padding: 12px;
+            background: #fef3c7;
+            border: 1px solid #fde047;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #854d0e;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e4e4e7;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #18181b;
+            transition: width 0.3s ease;
+        }
+
+        .main-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid #e4e4e7;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: #18181b;
+            color: white;
+            border-color: #18181b;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #09090b;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #09090b;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #fafafa;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn:focus-visible {
+            outline: 2px solid #18181b;
+            outline-offset: 2px;
+        }
+
+        .status-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid;
+            transition: all 0.2s ease;
+        }
+
+        .status-indicator.listening {
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #166534;
+        }
+
+        .status-indicator.idle {
+            background: #f4f4f5;
+            border-color: #e4e4e7;
+            color: #52525b;
+        }
+
+        .status-indicator.error {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #991b1b;
+        }
+
+        .status-indicator.detecting {
+            background: #fef3c7;
+            border-color: #fde047;
+            color: #854d0e;
+        }
+
+        .status-indicator.processing {
+            background: #e0e7ff;
+            border-color: #a5b4fc;
+            color: #3730a3;
+        }
+
+        .status-details {
+            font-size: 12px;
+            color: #71717a;
+            padding: 0 12px;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e4e4e7;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .checkbox-container:hover {
+            background: #fafafa;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .checkbox-container label {
+            font-size: 14px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .output-area {
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .output-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #09090b;
+        }
+
+        .word-count {
+            font-size: 14px;
+            color: #71717a;
+        }
+
+        .text-output {
+            min-height: 400px;
+            padding: 20px;
+            border: 1px solid #e4e4e7;
+            border-radius: 8px;
+            background: #fafafa;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #09090b;
+        }
+
+        .final-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .interim-text {
+            color: #71717a;
+            font-style: italic;
+        }
+
+        .pulse {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .pulse.green {
+            background: #22c55e;
+        }
+
+        .pulse.yellow {
+            background: #eab308;
+        }
+
+        .pulse.purple {
+            background: #a855f7;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid #e4e4e7;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Speech to Text</h1>
+            <p>Convert your voice to text in real-time using online or offline recognition</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="control-section engine-selector">
+                    <h3>Recognition Engine</h3>
+                    <select id="engineSelect">
+                        <option value="webspeech">Web Speech API (Online)</option>
+                        <option value="whisper">Whisper (Offline)</option>
+                    </select>
+                    <div id="engineInfo" class="engine-info online">
+                        🌐 Online: Fast, requires internet connection
+                    </div>
+                    <div id="modelDownload" class="model-download" style="display: none;">
+                        <div id="downloadText">Model not downloaded</div>
+                        <div class="progress-bar" id="progressBar" style="display: none;">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-section language-selector">
+                    <h3>Language</h3>
+                    <select id="languageSelect">
+                        <option value="en-US">English (US)</option>
+                        <option value="en-GB">English (UK)</option>
+                        <option value="es-ES">Spanish (Spain)</option>
+                        <option value="es-MX">Spanish (Mexico)</option>
+                        <option value="fr-FR">French</option>
+                        <option value="de-DE">German</option>
+                        <option value="it-IT">Italian</option>
+                        <option value="pt-BR">Portuguese (Brazil)</option>
+                        <option value="pt-PT">Portuguese (Portugal)</option>
+                        <option value="ru-RU">Russian</option>
+                        <option value="ja-JP">Japanese</option>
+                        <option value="ko-KR">Korean</option>
+                        <option value="zh-CN">Chinese (Simplified)</option>
+                        <option value="zh-TW">Chinese (Traditional)</option>
+                        <option value="hi-IN">Hindi</option>
+                        <option value="ar-SA">Arabic</option>
+                    </select>
+                </div>
+
+                <div class="control-section main-controls">
+                    <h3>Controls</h3>
+                    <button id="startBtn" class="btn btn-primary">
+                        <span>🎤</span> Start Recording
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger" disabled>
+                        <span>⏹️</span> Stop Recording
+                    </button>
+                    <button id="clearBtn" class="btn btn-secondary">
+                        <span>🗑️</span> Clear Text
+                    </button>
+                    <button id="copyBtn" class="btn btn-secondary" disabled>
+                        <span>📋</span> Copy to Clipboard
+                    </button>
+                </div>
+
+                <div class="control-section">
+                    <h3>Options</h3>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="autoPunctuation" checked>
+                        <label for="autoPunctuation">Voice Punctuation Commands</label>
+                    </label>
+                    <div class="status-details" style="margin-top: 4px;">
+                        Say: "comma", "period", "question mark", "exclamation point", "new line", "new paragraph"
+                    </div>
+                </div>
+
+                <div class="control-section status-section">
+                    <h3>Status</h3>
+                    <div id="status" class="status-indicator idle">
+                        <span>⏹️</span> Ready to start
+                    </div>
+                    <div id="statusDetails" class="status-details">
+                        Select an engine and click Start Recording
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-area">
+                <div class="output-header">
+                    <h2>Transcription</h2>
+                    <span id="wordCount" class="word-count">0 words</span>
+                </div>
+                
+                <div id="output" class="text-output">
+                    <div id="finalText" class="final-text"></div>
+                    <div id="interimText" class="interim-text"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+        // Configure transformers.js
+        env.allowLocalModels = false;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const output = document.getElementById('output');
+        const finalText = document.getElementById('finalText');
+        const interimText = document.getElementById('interimText');
+        const status = document.getElementById('status');
+        const statusDetails = document.getElementById('statusDetails');
+        const languageSelect = document.getElementById('languageSelect');
+        const engineSelect = document.getElementById('engineSelect');
+        const engineInfo = document.getElementById('engineInfo');
+        const modelDownload = document.getElementById('modelDownload');
+        const downloadText = document.getElementById('downloadText');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const wordCount = document.getElementById('wordCount');
+        const autoPunctuation = document.getElementById('autoPunctuation');
+
+        let recognition;
+        let whisperPipeline = null;
+        let isListening = false;
+        let startTime = null;
+        let currentEngine = 'webspeech';
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingStream;
+        let recordingMimeType = 'audio/webm';
+
+        // Punctuation command mappings
+        const punctuationMap = {
+            'period': '.',
+            'comma': ',',
+            'question mark': '?',
+            'exclamation point': '!',
+            'exclamation mark': '!',
+            'colon': ':',
+            'semicolon': ';',
+            'dash': '-',
+            'hyphen': '-',
+            'quote': '"',
+            'apostrophe': "'",
+            'new line': '\n',
+            'new paragraph': '\n\n'
+        };
+
+        function processPunctuation(text) {
+            if (!autoPunctuation.checked) return text;
+            
+            let processed = text;
+            
+            for (const [command, punctuation] of Object.entries(punctuationMap)) {
+                const regex = new RegExp('\\s+' + command + '\\s*', 'gi');
+                processed = processed.replace(regex, punctuation + ' ');
+            }
+            
+            processed = processed.replace(/\s+([.,!?;:])/g, '$1');
+            processed = processed.replace(/([.,!?;:])\s*([.,!?;:])/g, '$1$2');
+            processed = processed.replace(/\s+/g, ' ');
+            
+            processed = processed.replace(/([.!?])\s+([a-z])/g, (match, punct, letter) => {
+                return punct + ' ' + letter.toUpperCase();
+            });
+            
+            if (processed.length > 0) {
+                processed = processed.charAt(0).toUpperCase() + processed.slice(1);
+            }
+            
+            return processed;
+        }
+
+        function updateWordCount() {
+            const text = finalText.textContent.trim();
+            const words = text ? text.split(/\s+/).length : 0;
+            wordCount.textContent = `${words} word${words !== 1 ? 's' : ''}`;
+            copyBtn.disabled = words === 0;
+        }
+
+        // Engine selection handler
+        engineSelect.addEventListener('change', () => {
+            currentEngine = engineSelect.value;
+            
+            if (currentEngine === 'webspeech') {
+                engineInfo.className = 'engine-info online';
+                engineInfo.textContent = '🌐 Online: Fast, requires internet connection';
+                modelDownload.style.display = 'none';
+                languageSelect.disabled = false;
+                statusDetails.textContent = 'Web Speech API ready';
+            } else {
+                engineInfo.className = 'engine-info offline';
+                engineInfo.textContent = '💾 Offline: Private, works without internet (after download)';
+                modelDownload.style.display = 'block';
+                
+                if (!whisperPipeline) {
+                    downloadText.textContent = '⚠️ Model needs to be downloaded (~150MB)';
+                    statusDetails.textContent = 'Click Start to download model';
+                } else {
+                    downloadText.textContent = '✓ Model ready for offline use';
+                    statusDetails.textContent = 'Whisper model loaded';
+                }
+            }
+        });
+
+        // Check browser support and initialize
+        const hasWebSpeech = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+        
+        // Auto-switch to Whisper for browsers without Web Speech API
+        if (!hasWebSpeech) {
+            engineSelect.value = 'whisper';
+            currentEngine = 'whisper';
+            engineInfo.className = 'engine-info offline';
+            engineInfo.textContent = '💾 Offline: Your browser requires Whisper (Web Speech API not supported)';
+            modelDownload.style.display = 'block';
+            downloadText.textContent = '⚠️ Model needs to be downloaded (~150MB)';
+            statusDetails.textContent = 'Click Start to download Whisper model';
+            
+            // Disable Web Speech option
+            const webSpeechOption = engineSelect.querySelector('option[value="webspeech"]');
+            webSpeechOption.disabled = true;
+            webSpeechOption.textContent = 'Web Speech API (Not supported in this browser)';
+        }
+        
+        // Initialize Web Speech API (if available)
+        if (hasWebSpeech) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = languageSelect.value;
+
+            recognition.onstart = () => {
+                isListening = true;
+                startTime = Date.now();
+                status.className = 'status-indicator listening';
+                status.innerHTML = '<span class="pulse green"></span> Listening for audio...';
+                statusDetails.textContent = 'Microphone active';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                languageSelect.disabled = true;
+                engineSelect.disabled = true;
+            };
+
+            recognition.onaudiostart = () => {
+                statusDetails.textContent = 'Audio input detected';
+            };
+
+            recognition.onsoundstart = () => {
+                status.className = 'status-indicator detecting';
+                status.innerHTML = '<span class="pulse yellow"></span> Sound detected...';
+                statusDetails.textContent = 'Processing audio signal';
+            };
+
+            recognition.onspeechstart = () => {
+                status.className = 'status-indicator processing';
+                status.innerHTML = '<span class="pulse purple"></span> Speech detected';
+                statusDetails.textContent = 'Converting speech to text';
+            };
+
+            recognition.onspeechend = () => {
+                if (isListening) {
+                    status.className = 'status-indicator listening';
+                    status.innerHTML = '<span class="pulse green"></span> Listening for audio...';
+                    statusDetails.textContent = 'Waiting for next speech';
+                }
+            };
+
+            recognition.onsoundend = () => {
+                statusDetails.textContent = 'Audio signal ended';
+            };
+
+            recognition.onaudioend = () => {
+                statusDetails.textContent = 'Microphone input paused';
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    const processed = processPunctuation(finalTranscript);
+                    finalText.textContent += processed;
+                    updateWordCount();
+                }
+                
+                interimText.textContent = interimTranscript;
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                status.className = 'status-indicator error';
+                
+                let errorMessage = '';
+                switch(event.error) {
+                    case 'no-speech':
+                        errorMessage = '⚠️ No speech detected';
+                        statusDetails.textContent = 'Try speaking louder or closer to the microphone';
+                        break;
+                    case 'audio-capture':
+                        errorMessage = '⚠️ Microphone not accessible';
+                        statusDetails.textContent = 'Check microphone permissions and connections';
+                        break;
+                    case 'not-allowed':
+                        errorMessage = '🔒 Microphone access denied';
+                        statusDetails.textContent = 'Please allow microphone access in your browser settings';
+                        break;
+                    case 'network':
+                        errorMessage = '🌐 Network error';
+                        statusDetails.textContent = 'Check your internet connection';
+                        break;
+                    case 'aborted':
+                        errorMessage = '⏹️ Recognition aborted';
+                        statusDetails.textContent = 'Speech recognition was stopped unexpectedly';
+                        break;
+                    default:
+                        errorMessage = `⚠️ Error: ${event.error}`;
+                        statusDetails.textContent = 'An unexpected error occurred';
+                }
+                
+                status.innerHTML = errorMessage;
+                stopRecognition();
+            };
+
+            recognition.onnomatch = () => {
+                status.className = 'status-indicator error';
+                status.innerHTML = '⚠️ Speech not recognized';
+                statusDetails.textContent = 'Could not understand the audio - try speaking more clearly';
+            };
+
+            recognition.onend = () => {
+                if (isListening && currentEngine === 'webspeech') {
+                    recognition.start();
+                } else if (!isListening) {
+                    const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
+                    statusDetails.textContent = duration > 0 ? `Session duration: ${duration} seconds` : '';
+                }
+            };
+        }
+
+        // Whisper implementation
+        async function loadWhisperModel() {
+            if (whisperPipeline) return whisperPipeline;
+
+            try {
+                status.className = 'status-indicator processing';
+                status.innerHTML = '<span class="pulse purple"></span> Downloading model...';
+                downloadText.textContent = 'Downloading Whisper model...';
+                progressBar.style.display = 'block';
+                
+                whisperPipeline = await pipeline(
+                    'automatic-speech-recognition',
+                    'Xenova/whisper-tiny',
+                    {
+                        progress_callback: (progress) => {
+                            if (progress.status === 'progress') {
+                                const percent = Math.round((progress.loaded / progress.total) * 100);
+                                progressFill.style.width = percent + '%';
+                                downloadText.textContent = `Downloading: ${percent}%`;
+                                statusDetails.textContent = `${Math.round(progress.loaded / 1024 / 1024)}MB / ${Math.round(progress.total / 1024 / 1024)}MB`;
+                            } else if (progress.status === 'done') {
+                                downloadText.textContent = '✓ Model downloaded and cached';
+                                progressBar.style.display = 'none';
+                            }
+                        }
+                    }
+                );
+
+                status.className = 'status-indicator idle';
+                status.innerHTML = '<span>✓</span> Model loaded';
+                statusDetails.textContent = 'Whisper ready for offline use';
+                downloadText.textContent = '✓ Model ready for offline use';
+                
+                return whisperPipeline;
+            } catch (error) {
+                console.error('Error loading Whisper model:', error);
+                status.className = 'status-indicator error';
+                status.innerHTML = '❌ Model loading failed';
+                statusDetails.textContent = error.message;
+                downloadText.textContent = '❌ Download failed';
+                progressBar.style.display = 'none';
+                throw error;
+            }
+        }
+
+        async function startWhisperRecording() {
+            try {
+                await loadWhisperModel();
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                recordingStream = stream;
+                
+                // Firefox compatibility: try different mime types
+                let mimeType = 'audio/webm';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                        mimeType = 'audio/webm;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                        mimeType = 'audio/ogg;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        mimeType = 'audio/mp4';
+                    }
+                }
+                
+                recordingMimeType = mimeType;
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    status.className = 'status-indicator processing';
+                    status.innerHTML = '<span class="pulse purple"></span> Transcribing audio...';
+                    statusDetails.textContent = 'Processing with Whisper...';
+
+                    const audioBlob = new Blob(audioChunks, { type: recordingMimeType });
+                    
+                    try {
+                        const arrayBuffer = await audioBlob.arrayBuffer();
+                        const audioContext = new AudioContext({ sampleRate: 16000 });
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        
+                        const audioData = audioBuffer.getChannelData(0);
+                        
+                        const result = await whisperPipeline(audioData, {
+                            chunk_length_s: 30,
+                            stride_length_s: 5,
+                        });
+
+                        const transcription = result.text.trim();
+                        if (transcription) {
+                            const processed = processPunctuation(transcription);
+                            finalText.textContent += processed + ' ';
+                            updateWordCount();
+                        }
+
+                        const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
+                        status.className = 'status-indicator idle';
+                        status.innerHTML = '<span>⏹️</span> Transcription complete';
+                        statusDetails.textContent = duration > 0 ? `Processed ${duration} seconds of audio` : 'Ready';
+                    } catch (error) {
+                        console.error('Transcription error:', error);
+                        status.className = 'status-indicator error';
+                        status.innerHTML = '❌ Transcription failed';
+                        statusDetails.textContent = error.message;
+                    }
+
+                    if (recordingStream) {
+                        recordingStream.getTracks().forEach(track => track.stop());
+                        recordingStream = null;
+                    }
+                };
+
+                mediaRecorder.start();
+                isListening = true;
+                startTime = Date.now();
+                
+                status.className = 'status-indicator listening';
+                status.innerHTML = '<span class="pulse green"></span> Recording audio...';
+                statusDetails.textContent = 'Speak now - will transcribe when you stop';
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                languageSelect.disabled = true;
+                engineSelect.disabled = true;
+
+            } catch (error) {
+                console.error('Recording error:', error);
+                status.className = 'status-indicator error';
+                status.innerHTML = '❌ Recording failed';
+                statusDetails.textContent = error.message;
+                stopBtn.disabled = true;
+                startBtn.disabled = false;
+                engineSelect.disabled = false;
+            }
+        }
+
+        function stopWhisperRecording() {
+            isListening = false;
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            languageSelect.disabled = false;
+            engineSelect.disabled = false;
+        }
+
+        // Button handlers
+        startBtn.addEventListener('click', async () => {
+            if (currentEngine === 'webspeech') {
+                if (recognition) {
+                    recognition.lang = languageSelect.value;
+                    recognition.start();
+                } else {
+                    status.className = 'status-indicator error';
+                    status.innerHTML = '❌ Not available';
+                    statusDetails.textContent = 'Web Speech API is not supported in this browser';
+                }
+            } else {
+                await startWhisperRecording();
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (currentEngine === 'webspeech') {
+                stopRecognition();
+            } else {
+                stopWhisperRecording();
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            finalText.textContent = '';
+            interimText.textContent = '';
+            updateWordCount();
+        });
+
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(finalText.textContent);
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<span>✓</span> Copied!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        });
+
+        function stopRecognition() {
+            isListening = false;
+            if (recognition) {
+                recognition.stop();
+            }
+            const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
+            status.className = 'status-indicator idle';
+            status.innerHTML = '<span>⏹️</span> Stopped';
+            statusDetails.textContent = duration > 0 ? `Total recording time: ${duration} seconds` : '';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            languageSelect.disabled = false;
+            engineSelect.disabled = false;
+        }
+
+        output.addEventListener('input', updateWordCount);
+        updateWordCount();
+    </script>
+</body>
+</html>
