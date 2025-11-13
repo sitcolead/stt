@@ -391,6 +391,10 @@
             <p>Convert your voice to text in real-time using online or offline recognition</p>
         </div>
         
+        <div id="mobileInfo" style="display: none; background: #dbeafe; border-bottom: 1px solid #93c5fd; padding: 12px 32px; color: #1e40af; font-size: 13px;">
+            📱 <strong>Mobile Tip:</strong> Web Speech API on mobile may pause after silence. Just keep speaking or tap Stop/Start to continue.
+        </div>
+        
         <div class="main-content">
             <div class="sidebar">
                 <div class="control-section engine-selector">
@@ -508,6 +512,7 @@
         const progressFill = document.getElementById('progressFill');
         const wordCount = document.getElementById('wordCount');
         const autoPunctuation = document.getElementById('autoPunctuation');
+        const mobileInfo = document.getElementById('mobileInfo');
 
         let recognition;
         let whisperPipeline = null;
@@ -518,6 +523,15 @@
         let audioChunks = [];
         let recordingStream;
         let recordingMimeType = 'audio/webm';
+
+        // Detect if user is on mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                         (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+        
+        // Show mobile info if on mobile
+        if (isMobile && mobileInfo) {
+            mobileInfo.style.display = 'block';
+        }
 
         // Punctuation command mappings
         const punctuationMap = {
@@ -689,37 +703,53 @@
 
             recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
-                status.className = 'status-indicator error';
                 
                 let errorMessage = '';
                 switch(event.error) {
                     case 'no-speech':
-                        errorMessage = '⚠️ No speech detected';
-                        statusDetails.textContent = 'Try speaking louder or closer to the microphone';
+                        // Don't stop on no-speech, just show a warning and continue
+                        status.className = 'status-indicator listening';
+                        status.innerHTML = '<span class="pulse green"></span> Listening...';
+                        statusDetails.textContent = 'No speech detected - keep speaking or speak louder';
+                        // Don't call stopRecognition() - let it auto-restart via onend
+                        return;
+                    case 'aborted':
+                        // Aborted errors often happen on mobile during restarts - try to continue
+                        if (isListening && currentEngine === 'webspeech') {
+                            status.className = 'status-indicator listening';
+                            status.innerHTML = '<span class="pulse green"></span> Reconnecting...';
+                            statusDetails.textContent = 'Restarting recognition...';
+                            // Let onend handler deal with the restart
+                            return;
+                        }
+                        errorMessage = '⏹️ Recognition stopped';
+                        statusDetails.textContent = 'Speech recognition was stopped';
                         break;
                     case 'audio-capture':
+                        status.className = 'status-indicator error';
                         errorMessage = '⚠️ Microphone not accessible';
                         statusDetails.textContent = 'Check microphone permissions and connections';
                         break;
                     case 'not-allowed':
+                        status.className = 'status-indicator error';
                         errorMessage = '🔒 Microphone access denied';
                         statusDetails.textContent = 'Please allow microphone access in your browser settings';
                         break;
                     case 'network':
+                        status.className = 'status-indicator error';
                         errorMessage = '🌐 Network error';
                         statusDetails.textContent = 'Check your internet connection';
                         break;
-                    case 'aborted':
-                        errorMessage = '⏹️ Recognition aborted';
-                        statusDetails.textContent = 'Speech recognition was stopped unexpectedly';
-                        break;
                     default:
+                        status.className = 'status-indicator error';
                         errorMessage = `⚠️ Error: ${event.error}`;
                         statusDetails.textContent = 'An unexpected error occurred';
                 }
                 
-                status.innerHTML = errorMessage;
-                stopRecognition();
+                if (errorMessage) {
+                    status.innerHTML = errorMessage;
+                    stopRecognition();
+                }
             };
 
             recognition.onnomatch = () => {
@@ -730,7 +760,30 @@
 
             recognition.onend = () => {
                 if (isListening && currentEngine === 'webspeech') {
-                    recognition.start();
+                    // Mobile devices need a small delay before restarting
+                    setTimeout(() => {
+                        if (isListening && currentEngine === 'webspeech') {
+                            try {
+                                recognition.start();
+                            } catch (error) {
+                                console.error('Error restarting recognition:', error);
+                                // If restart fails, try again after a longer delay
+                                setTimeout(() => {
+                                    if (isListening && currentEngine === 'webspeech') {
+                                        try {
+                                            recognition.start();
+                                        } catch (e) {
+                                            console.error('Failed to restart recognition:', e);
+                                            status.className = 'status-indicator error';
+                                            status.innerHTML = '❌ Recognition stopped';
+                                            statusDetails.textContent = 'Please click Stop and Start again';
+                                            stopRecognition();
+                                        }
+                                    }
+                                }, 500);
+                            }
+                        }
+                    }, 100);
                 } else if (!isListening) {
                     const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
                     statusDetails.textContent = duration > 0 ? `Session duration: ${duration} seconds` : '';
